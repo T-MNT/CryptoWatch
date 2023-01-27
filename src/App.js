@@ -15,6 +15,7 @@ function App() {
   const [coinsNumber, setCoinsNumber] = useState(100);
   const [sortBy, setSortBy] = useState('Marketcap');
 
+  ///////Recupère la data de l'API//////
   const getData = () => {
     if (currency === '') {
       axios
@@ -31,13 +32,53 @@ function App() {
     }
   };
 
-  let cryptoFavs = [];
+  ////Récupère les données lorsque l'utilisateur choisit une autre monnaie////
+  useEffect(() => {
+    getData();
+  }, [currency]);
 
-  const addFavorite = (cryptoName) => {
-    if (localStorage.getItem('CryptoFavs')) {
-      cryptoFavs = JSON.parse(localStorage.getItem('CryptoFavs'));
+  ////Relance la fonction d'affichage de l'étoile de favori (pleine ou vide) lorsqu'une crypto
+  ///est ajoutée ou supprimée à la liste des favoris
+  useEffect(() => {
+    favDisplayer();
+  }, [favs]);
+
+  ////Trigger favori/////
+  const favActive = () => {
+    if (favsOnly) {
+      setFavsOnly(false);
+    } else {
+      setFavsOnly(true);
     }
+  };
+  /////Trigger stablecoins/////
+  const stableActive = () => {
+    if (stable) {
+      setStable(false);
+    } else {
+      setStable(true);
+    }
+  };
 
+  ////Attribue au state sortBy le paramètre selon lequel l'utilisateur veut trier les cryptos
+  ///(par prix croissant ou décroissant, par marketcap croissant ou décroissant, etc...)
+  const sortHandler = (sortParam) => {
+    if (sortBy === sortParam) {
+      setSortBy('!' + sortParam);
+    } else setSortBy(sortParam);
+  };
+
+  ///////Attribue à la variable cryptofavs un array des favoris si il y en a//////////
+  let cryptoFavs = [];
+  if (
+    localStorage.getItem('CryptoFavs') &&
+    localStorage.getItem('CryptoFavs').length > 0
+  ) {
+    cryptoFavs = JSON.parse(localStorage.getItem('CryptoFavs'));
+  }
+
+  //////Ajoute ou supprime une crypto de la liste des favoris///////
+  const addFavorite = (cryptoName) => {
     if (!cryptoFavs.includes(cryptoName)) {
       cryptoFavs.push(cryptoName);
       setFavs(cryptoFavs);
@@ -50,6 +91,7 @@ function App() {
     }
   };
 
+  //////Affiche une étoile vide ou pleine si crypto dans les favoris ou non///////
   const favDisplayer = (cryptoName) => {
     if (
       localStorage.getItem('CryptoFavs') &&
@@ -59,7 +101,7 @@ function App() {
         <FontAwesomeIcon
           icon={fullStar}
           onClick={(e) => addFavorite(cryptoName)}
-          style={{ color: 'yellow', marginRight: '20px' }}
+          style={{ color: 'yellow', marginRight: '20px', cursor: 'pointer' }}
         />
       );
     } else {
@@ -67,23 +109,14 @@ function App() {
         <FontAwesomeIcon
           icon={emptyStar}
           onClick={(e) => addFavorite(cryptoName)}
-          style={{ color: 'yellow', marginRight: '20px' }}
+          style={{ color: 'yellow', marginRight: '20px', cursor: 'pointer' }}
         />
       );
     }
   };
 
-  useEffect(() => {
-    getData();
-    cryptoFavs = JSON.parse(localStorage.getItem('CryptoFavs'));
-  }, [currency]);
-
-  useEffect(() => {
-    favDisplayer();
-  }, [favs]);
-
+  /////Attribue à la variable currency le symbole de la monnaie séléctionnée par l'utilisateur//////
   let currencySymbol;
-
   switch (currency) {
     case '':
       currencySymbol = ' $';
@@ -104,29 +137,24 @@ function App() {
     default:
       break;
   }
+
+  //////Filtre la data brute pour afficher seulement les favoris ou non, avec ou sans les stablecoins//////
   let newData;
   let stableCoins = ['Tether', 'USD Coin', 'Binance USD', 'Dai', 'TrueUSD'];
 
-  if (favsOnly && stable === false) {
-    if (localStorage.getItem('CryptoFavs')) {
-      cryptoFavs = JSON.parse(localStorage.getItem('CryptoFavs'));
-    }
-
+  if (favsOnly) {
     newData = data.filter((crypto) => cryptoFavs.includes(crypto.name));
-    console.log(newData);
-  }
-  if (stable && favsOnly) {
-    cryptoFavs = JSON.parse(localStorage.getItem('CryptoFavs'));
-    newData = data.filter((crypto) => cryptoFavs.includes(crypto.name));
-    newData = newData.filter((crypto) => !stableCoins.includes(crypto.name));
-  }
-  if (stable === false && favsOnly === false) {
+  } else {
     newData = data;
   }
-  if (favsOnly === false && stable) {
-    newData = data.filter((crypto) => !stableCoins.includes(crypto.name));
+  if (stable) {
+    newData = newData.filter((crypto) => !stableCoins.includes(crypto.name));
+  }
+  if (favsOnly === false && stable === false) {
+    newData = data;
   }
 
+  //////Affiche les variations de prix en pourcentage sous le format X.XX % ///////
   const percentHandler = (data) => {
     if (data) {
       return (
@@ -139,6 +167,7 @@ function App() {
     }
   };
 
+  /////Gère l'affichage du marketcap/////
   const mkCapHandler = (mkcap) => {
     switch (mkcap.toString().length) {
       case 15:
@@ -164,6 +193,9 @@ function App() {
         break;
     }
   };
+
+  /////Rend à l'écran la data (favori uniquement ou non, stablecoins affichés ou non)
+  /////et trie les cryptos par marketcap,prix et variation de prix dans le temps(1h,24h,etc...)
 
   const mappedData = newData
     .slice(0, coinsNumber)
@@ -337,27 +369,6 @@ function App() {
         </ul>
       </li>
     ));
-
-  const favActive = () => {
-    if (favsOnly) {
-      setFavsOnly(false);
-    } else {
-      setFavsOnly(true);
-    }
-  };
-  const stableActive = () => {
-    if (stable) {
-      setStable(false);
-    } else {
-      setStable(true);
-    }
-  };
-
-  const sortHandler = (sortParam) => {
-    if (sortBy === sortParam) {
-      setSortBy('!' + sortParam);
-    } else setSortBy(sortParam);
-  };
 
   const propertyList = [
     'Price',
